@@ -1,0 +1,26 @@
+module master_ahb(
+
+//AHB INPUT SIGNALS
+input CLK_MASTER,
+input RESET_MASTER,
+input HREADY,		//output of salve and input of master
+input [31:0] HRDATA, 	//output of salve and input of master
+
+//USER DEFINED SIGNAL 
+input [31:0] data_top,  // input to the master given by the testbench
+input write_top,	//control signal for deciding write or read operation 
+			//write_top = 1 WRITE / write_top = 0 READ operation
+input[3:0] beat_length,	//this signal is used to describe the beat of data from the tb
+input enb,		//enb  1 master will start either write or read operation 
+input [31:0] addr_top,	//base address given from testbench
+input wrap_enb,		//wrap_enb = 1 wrapping burst else incremental burst
+
+//AHB OUTPUT SIGNALS	
+
+
+
+);
+
+
+
+endmodule
