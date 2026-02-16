@@ -20,9 +20,11 @@ output [31:0] HADDR,		//address bus
 output reg HWRITE,		//write control signal
 output reg [2:0] HSIZE,		//used to determine the transfer size
 output reg [31:0] HWDATA,	//DATA BUS
+output reg [2:0] HBURST,	//tell count of your packets
+output reg [1:0] HTRANS,	//Indicates transfer type (idle, busy, nonseq, seq)(00,01,10,11).
 
 //USER DEFINED SIGNAL [FIFO]
-output fifo_empty,fifo_full,
+output fifo_empty,fifo_full
  
 );
 
@@ -33,10 +35,12 @@ reg [3:0] count = 3'b000;
 reg hburst_internal;
 reg [31:0] internal_data;
 reg [7:0] wrap_base;
-reg [7:0] wrap_boundary
+reg [7:0] wrap_boundary;
 
 //fifo signals 
 reg[3:0] wr_ptr, rd_ptr;
+reg [31:0] mem [14:0];
+
 
 parameter  idle 		= 3'b000;
 parameter write_state_address 	= 3'b001;
@@ -48,4 +52,87 @@ assign fifo_empty = (wr_ptr == rd_ptr);
 assign fifo_full = rd_ptr == (wr_ptr + 1);
 
 
+
+
+//FIFO logic
+always @(posedge CLK_MASTER)
+	begin
+		if(RESET_MASTER)
+			begin
+				for(i = 0; i<15; i = i + 1)
+					mem [i] <= 0;
+					wr_ptr  <= 0;
+					rd_ptr 	<= 0;
+			end
+		else if(write_top)
+			begin
+				mem[wr_ptr] 	<=	data_top;
+				wr_ptr		<=	wr_ptr+1;
+			end
+	end
+
+//PRESET STATE LOGIC
+always @(posedge CLK_MASTER)
+	begin
+		if(RESET_MASTER)
+			present_state	<= idle;
+		else
+			present_state	<= next_state;
+	end
+
+
+//NEXT STATE LOGIC
+
+always@ (*)
+	begin
+		case(present_state)
+			idle:begin
+				HSIZE	= 'bx;
+				HBURST	= 'bx;
+				HTRANS 	=  2'b00;	//master is in idle state
+				HWDATA	= 'bx;
+				count 	= 0;
+				addr_internal = addr_top;
+
+			//LOGIC FOR WRITE OPERATION 
+
+				if(write_top && HREADY && beat_length == 1 && enb && wrap_enb ==0)begin
+					next_state	=	write_state_address;
+					HBURST		= 	3'b000;
+					HWRITE		= 	1;
+				end
+			end
+			
+			write_state_address:begin
+				HSIZE	=	3'b010;	//4 byte
+				HWRITE	=	1;
+				if(HBURST  == 3'b000)begin
+					HTRANS		=   2'B10;		//NON_SEQ TRANSFER
+					next_state	= write_state_data;
+				end
+			end
+			
+			write_state_data: begin
+				if(HBURST == 3'b000)begin
+					if(HREADY)begin
+						next_state 	= idle;
+						HWDATA		= data_top;
+					end
+				end
+			end
+			default:next_state = idle;
+		endcase
+	end
+
+assign HADDR = addr_internal;
+
+
+				
 endmodule
+
+
+
+
+
+
+

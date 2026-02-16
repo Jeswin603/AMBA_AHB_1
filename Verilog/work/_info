@@ -8,3 +8,24 @@ z2
 !i10f 100
 cModel Technology
 dC:/intelFPGA/18.1
+vmaster_ahb
+!s110 1771215938
+!i10b 1
+!s100 4[m@CaaD]if0o;]7_8Il<0
+I:7=m5I5QCY@?nF]e^mTP92
+VDg1SIo80bB@j0V0VzS_@n1
+dC:/Users/User/Desktop/compress/M-TECH/P_PROJECT/AMBA_AHB_1/Verilog
+w1771215929
+8C:/Users/User/Desktop/compress/M-TECH/P_PROJECT/AMBA_AHB_1/Verilog/ahb_master.v
+FC:/Users/User/Desktop/compress/M-TECH/P_PROJECT/AMBA_AHB_1/Verilog/ahb_master.v
+L0 1
+OV;L;10.5b;63
+r1
+!s85 0
+31
+!s108 1771215938.000000
+!s107 C:/Users/User/Desktop/compress/M-TECH/P_PROJECT/AMBA_AHB_1/Verilog/ahb_master.v|
+!s90 -reportprogress|300|-work|work|-stats=none|C:/Users/User/Desktop/compress/M-TECH/P_PROJECT/AMBA_AHB_1/Verilog/ahb_master.v|
+!i113 1
+o-work work
+tCvgOpt 0
