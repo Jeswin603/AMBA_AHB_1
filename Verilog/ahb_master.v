@@ -1,9 +1,11 @@
+
 module master_ahb(
 
 //AHB INPUT SIGNALS
 input CLK_MASTER,
 input RESET_MASTER,
 input HREADY,			//output of salve and input of master
+//input HRESP,			//output of slave and input of master
 input [31:0] HRDATA, 		//output of salve and input of master
 
 //USER DEFINED SIGNAL 
@@ -28,7 +30,7 @@ output fifo_empty,fifo_full
  
 );
 
-reg[1:0] present_state,next_state;
+reg[2:0] present_state,next_state;
 reg [31:0]addr_internal = 32'h0000_0000;
 integer i = 0;
 reg [3:0] count = 3'b000;
@@ -74,10 +76,19 @@ always @(posedge CLK_MASTER)
 //PRESET STATE LOGIC
 always @(posedge CLK_MASTER)
 	begin
-		if(RESET_MASTER)
+		if(RESET_MASTER )begin
 			present_state	<= idle;
-		else
+			count		<= 0;
+		end
+		else begin
 			present_state	<= next_state;
+			if(present_state == write_state_data && beat_length == 4 && HREADY && wrap_enb == 0) begin
+				count 	<= count + 1;
+				rd_ptr 	<= rd_ptr + 1;
+				addr_internal <= addr_internal + 'h4;
+			end
+		end
+		
 	end
 
 
@@ -94,22 +105,36 @@ always@ (*)
 				count 	= 0;
 				addr_internal = addr_top;
 
-			//LOGIC FOR WRITE OPERATION 
-
-				if(write_top && HREADY && beat_length == 1 && enb && wrap_enb ==0)begin
+				//LOGIC FOR WRITE OPERATION 
+				//LOGIC FOR SINGLE INCRMENTAL BURST
+				if(write_top && HREADY && beat_length == 1 && enb && wrap_enb == 0)begin
 					next_state	=	write_state_address;
 					HBURST		= 	3'b000;
 					HWRITE		= 	1;
 				end
+				//LOGIC FOR INCR4 BURST
+				else if(write_top && HREADY && beat_length ==4 && enb && wrap_enb == 0)begin
+					next_state	=	 write_state_address;
+					HBURST 		= 	 3'b011;
+					HWRITE		=	 1;
+				end
+
 			end
 			
 			write_state_address:begin
 				HSIZE	=	3'b010;	//4 byte
 				HWRITE	=	1;
+				//SINGLE INCR
 				if(HBURST  == 3'b000)begin
 					HTRANS		=   2'B10;		//NON_SEQ TRANSFER
 					next_state	= write_state_data;
 				end
+
+				//INCR4 BURST
+				else if(HBURST == 3'b011)begin
+					HTRANS		= 2'b10; 		//NON_SEQ TRANSFER
+					next_state	= write_state_data; 
+				end 
 			end
 			
 			write_state_data: begin
@@ -118,6 +143,14 @@ always@ (*)
 						next_state 	= idle;
 						HWDATA		= data_top;
 					end
+				end
+				if(HBURST == 3'B011)begin	//incr4
+					HWDATA = mem[rd_ptr];
+					HTRANS = 2'B11;		//SEQ TRANSFER
+					if(count == (beat_length - 1))
+						next_state = idle;
+					else 
+						next_state = write_state_data;
 				end
 			end
 			default:next_state = idle;
