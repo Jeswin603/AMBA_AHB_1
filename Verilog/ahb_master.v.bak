@@ -1,3 +1,4 @@
+
 module master_ahb(
 
 //AHB INPUT SIGNALS
@@ -29,14 +30,15 @@ output fifo_empty,fifo_full
  
 );
 
-reg[1:0] present_state,next_state;
+reg[2:0] present_state,next_state;
 reg [31:0]addr_internal = 32'h0000_0000;
 integer i = 0;
 reg [3:0] count = 3'b000;
 reg hburst_internal;
 reg [31:0] internal_data;
-reg [7:0] wrap_base;
-reg [7:0] wrap_boundary;
+reg [31:0] wrap_address;
+reg [31:0] wrap_boundary;
+reg [31:0] wrap_base;
 
 //fifo signals 
 reg[3:0] wr_ptr, rd_ptr;
@@ -81,10 +83,29 @@ always @(posedge CLK_MASTER)
 		end
 		else begin
 			present_state	<= next_state;
+        		// -------- BURST START INITIALIZATION --------
+        		if (present_state == idle && write_top && enb) begin
+            			addr_internal <= addr_top;
+            			count <= 0;
+
+            		if (wrap_enb && beat_length == 4)
+                		wrap_base <= addr_top & ~(16 - 1);  // 16-byte boundary
+        		end	
+	
 			if(present_state == write_state_data && beat_length == 4 && HREADY && wrap_enb == 0) begin
 				count 	<= count + 1;
 				rd_ptr 	<= rd_ptr + 1;
 				addr_internal <= addr_internal + 'h4;
+			end
+
+			else if(present_state == write_state_data && beat_length == 4 && HREADY &&wrap_enb ==1) begin
+				$display("iam dmdjnjn");
+				count <= count + 1;
+				rd_ptr 	<= rd_ptr + 1;
+    				if(addr_internal == wrap_base + 12)
+        				addr_internal <= wrap_base;
+    				else
+       				 	addr_internal <= addr_internal + 4;				
 			end
 		end
 		
@@ -101,8 +122,7 @@ always@ (*)
 				HBURST	= 'bx;
 				HTRANS 	=  2'b00;	//master is in idle state
 				HWDATA	= 'bx;
-				count 	= 0;
-				addr_internal = addr_top;
+
 
 				//LOGIC FOR WRITE OPERATION 
 				//LOGIC FOR SINGLE INCRMENTAL BURST
@@ -116,6 +136,12 @@ always@ (*)
 					next_state	=	 write_state_address;
 					HBURST 		= 	 3'b011;
 					HWRITE		=	 1;
+				end
+				if (wrap_enb ==1 && beat_length == 4)begin
+					wrap_boundary  = 'h10;
+					wrap_address   = addr_internal & (~(wrap_boundary - 1));	
+					next_state	=	 write_state_address;
+					HBURST 		= 	 3'b010;		
 				end
 
 			end
@@ -134,6 +160,11 @@ always@ (*)
 					HTRANS		= 2'b10; 		//NON_SEQ TRANSFER
 					next_state	= write_state_data; 
 				end 
+
+				else if(HBURST == 3'b010)begin
+					HTRANS		= 2'b10; 		//NON_SEQ TRANSFER
+					next_state	= write_state_data; 
+				end 
 			end
 			
 			write_state_data: begin
@@ -149,6 +180,14 @@ always@ (*)
 					if(count == (beat_length - 1))
 						next_state = idle;
 					else 
+						next_state = write_state_data;
+				end
+				if(HBURST == 3'B010)begin	//wrap4
+					HWDATA = mem[rd_ptr];
+					HTRANS = 2'B11;		//SEQ TRANSFER
+					if(count == beat_length - 1)
+						next_state = idle;
+					else
 						next_state = write_state_data;
 				end
 			end

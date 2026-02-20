@@ -67,7 +67,8 @@ module ahb_tb;
 		rst = 0;
 		if(!fifo_full)begin
 			write_top = 1; //wrirte operation
-			addr_top  = 32'h0000_0000;
+			//addr_top  = 32'h0000_0000;
+			addr_top  = 32'h0000_0014;
 			data_top  = 32'h0000_0001;
 			#10;
 			data_top  = 32'h1234_1234;
@@ -78,10 +79,11 @@ module ahb_tb;
 
 			beat_length = 4;
 			enb = 1;
-			wrap_enb = 0;
+			wrap_enb = 1;
 			
 			#20;
 			enb = 0;
+			wrap_enb = 0;
 		end
 	end
 endmodule
